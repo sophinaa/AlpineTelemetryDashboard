@@ -21,6 +21,10 @@
     </p>
 </form>
 
+<form method="post" asp-page-handler="LoadSample" style="margin-top: 0.5rem;">
+    <button type="submit">Load sample telemetry lap</button>
+</form>
+
 @if (Model.EstimatedLapTimeSeconds is not null)
 {
     <p><strong>Estimated lap time:</strong> @Model.EstimatedLapTimeSeconds.Value.ToString("F3") s</p>
@@ -88,26 +92,58 @@
             const ctx = document.getElementById('speedChart').getContext('2d');
             const distances = telemetry.map(p => p.Distance);
             const speeds = telemetry.map(p => p.SpeedKph);
+            const throttles = telemetry.map(p => p.Throttle * 100); // % for display
+            const brakes = telemetry.map(p => p.Brake * 100);       // % for display
 
             new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: distances,
-                    datasets: [{
-                        label: 'Speed (kph)',
-                        data: speeds,
-                        borderWidth: 1,
-                        fill: false,
-                        tension: 0.1
-                    }]
+                    datasets: [
+                        {
+                            label: 'Speed (kph)',
+                            data: speeds,
+                            yAxisID: 'y-speed',
+                            borderWidth: 1,
+                            fill: false,
+                            tension: 0.1
+                        },
+                        {
+                            label: 'Throttle (%)',
+                            data: throttles,
+                            yAxisID: 'y-input',
+                            borderWidth: 1,
+                            borderDash: [4, 2],
+                            fill: false,
+                            tension: 0.1
+                        },
+                        {
+                            label: 'Brake (%)',
+                            data: brakes,
+                            yAxisID: 'y-input',
+                            borderWidth: 1,
+                            borderDash: [2, 2],
+                            fill: false,
+                            tension: 0.1
+                        }
+                    ]
                 },
                 options: {
                     scales: {
                         x: {
                             title: { display: true, text: 'Distance (m)' }
                         },
-                        y: {
+                        'y-speed': {
+                            type: 'linear',
+                            position: 'left',
                             title: { display: true, text: 'Speed (kph)' }
+                        },
+                        'y-input': {
+                            type: 'linear',
+                            position: 'right',
+                            title: { display: true, text: 'Throttle / Brake (%)' },
+                            min: 0,
+                            max: 100
                         }
                     }
                 }

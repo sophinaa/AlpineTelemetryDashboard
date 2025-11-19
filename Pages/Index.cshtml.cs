@@ -1,6 +1,7 @@
 using System.Text.Json;
 using AlpineTelemetryDashboard.Domain;
 using AlpineTelemetryDashboard.Services;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
@@ -10,11 +11,13 @@ public class IndexModel : PageModel
 {
     private readonly TelemetryLoader _loader;
     private readonly PaceSimulator _simulator;
+    private readonly IWebHostEnvironment _env;
 
-    public IndexModel(TelemetryLoader loader, PaceSimulator simulator)
+    public IndexModel(TelemetryLoader loader, PaceSimulator simulator, IWebHostEnvironment env)
     {
         _loader = loader;
         _simulator = simulator;
+        _env = env;
     }
 
     [BindProperty]
@@ -65,6 +68,31 @@ public class IndexModel : PageModel
         }
 
         Result = _simulator.Simulate(Input);
+        return Page();
+    }
+
+    public IActionResult OnPostLoadSample()
+    {
+        var path = Path.Combine(_env.WebRootPath, "data", "sample_lap.csv");
+        if (!System.IO.File.Exists(path))
+        {
+            ModelState.AddModelError(string.Empty, "Sample telemetry file not found.");
+            return Page();
+        }
+
+        using var stream = System.IO.File.OpenRead(path);
+        var lap = _loader.LoadFromCsv("Sample Lap", stream);
+        EstimatedLapTimeSeconds = lap.LapTimeSeconds;
+
+        var data = lap.Points.Select(p => new
+        {
+            p.Distance,
+            p.SpeedKph,
+            p.Throttle,
+            p.Brake
+        });
+
+        TelemetryJson = JsonSerializer.Serialize(data);
         return Page();
     }
 }
