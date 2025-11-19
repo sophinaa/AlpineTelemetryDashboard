@@ -1,0 +1,117 @@
+@page
+@model AlpineTelemetryDashboard.Pages.IndexModel
+@{
+    ViewData["Title"] = "Telemetry & Race Pace Dashboard";
+}
+
+<h1>Telemetry &amp; Race Pace Dashboard</h1>
+
+<hr />
+
+<h2>1. Upload Telemetry (CSV)</h2>
+
+<form method="post" enctype="multipart/form-data" asp-page-handler="Upload">
+    <div>
+        <label for="telemetryFile">Telemetry CSV:</label>
+        <input type="file" id="telemetryFile" name="TelemetryFile" />
+        <button type="submit">Upload</button>
+    </div>
+    <p style="font-size: 0.9rem; color: #555;">
+        Expected columns: distance,speed_kph,throttle,brake,gear,rpm
+    </p>
+</form>
+
+@if (Model.EstimatedLapTimeSeconds is not null)
+{
+    <p><strong>Estimated lap time:</strong> @Model.EstimatedLapTimeSeconds.Value.ToString("F3") s</p>
+}
+
+@if (!string.IsNullOrEmpty(Model.TelemetryJson))
+{
+    <h3>Speed vs Distance</h3>
+    <canvas id="speedChart" style="max-height: 400px;"></canvas>
+}
+
+<hr />
+
+<h2>2. Race Pace Simulation</h2>
+
+<form method="post" asp-page-handler="Simulate">
+    <div>
+        <label>Base lap time (s):</label>
+        <input asp-for="Input.BaseLapTimeSeconds" />
+    </div>
+    <div>
+        <label>Fuel delta (kg):</label>
+        <input asp-for="Input.FuelDeltaKg" />
+    </div>
+    <div>
+        <label>Tyre age (laps):</label>
+        <input asp-for="Input.TyreLaps" />
+    </div>
+    <div>
+        <label>Wing delta (clicks):</label>
+        <input asp-for="Input.WingDeltaClicks" />
+    </div>
+    <div>
+        <label>ERS gain (s):</label>
+        <input asp-for="Input.ErsModeSecondsGain" />
+    </div>
+    <button type="submit">Run Simulation</button>
+</form>
+
+@if (Model.Result is not null)
+{
+    <div style="margin-top: 1rem;">
+        <p><strong>Base lap:</strong> @Model.Result.BaseLapTimeSeconds.ToString("F3") s</p>
+        <p><strong>Simulated lap:</strong> @Model.Result.SimulatedLapTimeSeconds.ToString("F3") s</p>
+        <p><strong>Delta:</strong> @Model.Result.DeltaSeconds.ToString("F3") s</p>
+    </div>
+}
+
+@if (!ViewData.ModelState.IsValid)
+{
+    <ul style="color: red;">
+        @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+        {
+            <li>@error.ErrorMessage</li>
+        }
+    </ul>
+}
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        const telemetry = @Html.Raw(Model.TelemetryJson ?? "null");
+
+        if (telemetry) {
+            const ctx = document.getElementById('speedChart').getContext('2d');
+            const distances = telemetry.map(p => p.Distance);
+            const speeds = telemetry.map(p => p.SpeedKph);
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: distances,
+                    datasets: [{
+                        label: 'Speed (kph)',
+                        data: speeds,
+                        borderWidth: 1,
+                        fill: false,
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Distance (m)' }
+                        },
+                        y: {
+                            title: { display: true, text: 'Speed (kph)' }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+}
